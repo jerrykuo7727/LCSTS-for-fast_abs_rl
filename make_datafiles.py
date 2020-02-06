@@ -1,3 +1,5 @@
+import pyximport; pyximport.install()
+
 import os
 import re
 import json
@@ -19,7 +21,7 @@ def cut_sent(para):
 
 if __name__ == '__main__':
     assert not os.path.exists('finished_files')
-    cmd = os.popen('mkdir finished_files')
+    cmd = os.popen('mkdir finished_files/')
     cmd = os.popen('mkdir finished_files/train')
     cmd = os.popen('mkdir finished_files/val')
     cmd = os.popen('mkdir finished_files/test')
@@ -47,38 +49,44 @@ if __name__ == '__main__':
 
         # Soup entry
         if strip_line == '</doc>':
-            soup = BeautifulSoup(line_buffer, features='html.parser')
-            line_buffer = ''
+            try:
+                soup = BeautifulSoup(line_buffer, features='html.parser')
+                line_buffer = ''
 
-            # Process data as json
-            doc_id = soup.find('doc').attrs['id']
-            document = soup.find('short_text').contents[0]
-            summary = soup.find('summary').contents[0]
-            doc_sents = cut_sent(document)
-            summ_sents = cut_sent(summary)
-            article = [' '.join(jieba.cut(sent)) for sent in doc_sents]
-            abstract = [' '.join(jieba.cut(sent)) for sent in summ_sents]
-            data = {'id': doc_id, 'article': article, 'abstract': abstract}
+                # Process data as json
+                doc_id = soup.find('doc').attrs['id']
+                document = soup.find('short_text').contents[0]
+                summary = soup.find('summary').contents[0]
+                doc_sents = cut_sent(document)
+                summ_sents = cut_sent(summary)
+                article = [' '.join(jieba.cut(sent)) for sent in doc_sents]
+                abstract = [' '.join(jieba.cut(sent)) for sent in summ_sents]
+                data = {'id': doc_id, 'article': article, 'abstract': abstract}
 
-            # Store data as json
-            cursor = data_iter % 10
-            if cursor == 0:     # Val set
-                json.dump(data, open('finished_files/val/%d.json' % val_iter, 'w'))
-                val_iter += 1
-            elif cursor == 1:   # Test set
-                json.dump(data, open('finished_files/test/%d.json' % test_iter, 'w'))
-                test_iter += 1
-            else:   # Train set
-                json.dump(data, open('finished_files/train/%d.json' % train_iter, 'w'))
-                train_iter += 1
+                # Store data as json
+                cursor = data_iter % 10
+                if cursor == 0:     # Val set
+                    json.dump(data, open('finished_files/val/%d.json' % val_iter, 'w'))
+                    val_iter += 1
+                elif cursor == 1:   # Test set
+                    json.dump(data, open('finished_files/test/%d.json' % test_iter, 'w'))
+                    test_iter += 1
+                else:   # Train set
+                    json.dump(data, open('finished_files/train/%d.json' % train_iter, 'w'))
+                    train_iter += 1
                 
-                # Vocab counter for train set
-                art_tokens = ' '.join(article).split()
-                abs_tokens = ' '.join(abstract).split()
-                tokens = art_tokens + abs_tokens
-                tokens = [t.strip() for t in tokens] # strip
-                tokens = [t for t in tokens if t != ""] # remove empty
-                vocab_counter.update(tokens)
+                    # Vocab counter for train set
+                    art_tokens = ' '.join(article).split()
+                    abs_tokens = ' '.join(abstract).split()
+                    tokens = art_tokens + abs_tokens
+                    tokens = [t.strip() for t in tokens] # strip
+                    tokens = [t for t in tokens if t != ""] # remove empty
+                    vocab_counter.update(tokens)
+            except:
+                line_buffer = ''
+                print('\n---- Error found in soup ----')
+                print(soup.prettify())
+                print('-----------------------------')
             
             # Progress bar :)
             data_iter += 1
